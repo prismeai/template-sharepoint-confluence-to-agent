@@ -1,0 +1,69 @@
+slug: generateUnificationPrompt
+name: '/Example: AI Excel Parsing/utils/Generate Unification Prompt'
+do:
+  - set:
+      name: prompt
+      value: >
+        You are a Database expert.
+
+
+        1. Your task is to deduce the proper column of this unformated Excel
+        file. Be careful, the columns may not be the first
+
+        few rows sometimes, or columns names may be represented by two rows in a
+        "subfolder" type of organizing.
+
+
+        2. Here are the first few lines of my csv which was automatically parsed
+        from an excel sheet :
+
+        ```
+
+        {{firstBatchRows}}
+
+        ```
+
+
+        3. Give me the mapping that allows me to transform my whole csv to the
+        proper format
+
+
+        4. Reply ONLY a JSON with no text around or any backquote, it is very
+        important that the response has a proper JSON structure.  
+
+        You should present your result in a JSON like this:
+          reasoning: Explain here as a string what may be the columns names, with two propositions and then select the correct one.
+          reasoningFixes: Try to fix possible error in the above reasoning, ensuring it respect the guideline from this prompt and my expectations. Use common sense and be logical.
+          result:
+            - columnNumber: <index of the column in the CSV, starting at index 0>
+              columnName: <name of the column>
+            
+        Ensure you don't omit any column name. Never merge columns into one if
+        both have names.
+
+        However, you should add the name of "folder" header name to the cells
+        after it (never to those before).
+
+        The final result should not have duplicated column names, if there are
+        it means there is some sort of nested organization in the headers.
+
+        Don't make up name columns.
+
+        Make sure to answer only with a JSON, no backquote nor description as I
+        will send your output directly to a program.
+
+        Don't exceed 100 columns.
+            
+        Using this information I will be able to create a new CSV file with the
+        proper column names.
+arguments:
+  sheetName:
+    type: string
+  firstBatchRows:
+    type: string
+  currentRows:
+    type: string
+output: '{{prompt}}'
+description: >-
+  Generate an AI prompt to understand multiple Excel files with various formats
+  (headers on multiple lines for example)

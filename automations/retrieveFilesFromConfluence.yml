@@ -1,0 +1,126 @@
+slug: retrieveFilesFromConfluence
+name: '/Example: Confluence Retrieve/Start Confluence file retrieval'
+do:
+  - comment: Retrieve files metadata from Confluence
+  - emit:
+      event: uploadProcess-fetchingFiles
+  - getAllConfluenceDocuments:
+      output: confluencePages
+  - set:
+      name: filesData
+      value: '{{confluencePages.results}}'
+  - repeat:
+      'on': '{{confluencePages.results}}'
+      do:
+        - conditions:
+            '{{item.body.atlas_doc_format.value}}':
+              - Custom Code.run:
+                  function: jsonToYaml
+                  parameters:
+                    json: '{% {{item.body.atlas_doc_format.value}} %}'
+                  output: yamlValue
+              - set:
+                  name: filesData.results[{{$index}}].body.atlas_doc_format.value
+                  value: '{{yamlValue}}'
+  - set:
+      name: newExhaustiveFileNameList
+      value: []
+  - conditions:
+      '!isArray({{filesData}}) or {{filesData.length}} == 0':
+        - set:
+            name: output
+            value:
+              error: NoDataFound
+              message: No data was found for the given configuration, aborting update.
+        - break: {}
+      '{{dry}}':
+        - set:
+            name: output
+            value:
+              message: DryMode, process stopped.
+              filesData: '{{filesData}}'
+        - break: {}
+  - emit:
+      event: uploadProcess-starting
+      payload:
+        filesDataLength: '{{filesData.length}}'
+  - set:
+      name: updatedFiles
+      value: []
+  - set:
+      name: logExistingFiles
+      value: []
+  - comment: Update the existing files
+  - repeat:
+      'on': '{{filesData}}'
+      do:
+        - set:
+            name: newExhaustiveFileNameList
+            type: push
+            value: '{{item.title}}'
+        - FilesCollection.find:
+            query:
+              name: '{{item.title}}'
+            output: existingFiles
+        - conditions:
+            '{{existingFiles.length}} == 0 || {{existingFiles[0].versionNumber}} != {{item.version.number}} || {{reindex}}':
+              - emit:
+                  event: uploadProcess-processingFile
+                  payload:
+                    filename: '{{item.title}}'
+              - Knowledge Client.createDocument:
+                  data:
+                    language: en-EN
+                    externalId: template-api-to-aik_{{item.title}}
+                    name: '{{item.title}}'
+                    content:
+                      text: '{{item.body.atlas_doc_format.value}}'
+                      url: >-
+                        https://{{$workspace.imports.Confluence.config.domain}}/wiki{{item._links.webui}}
+                    upsert: true
+                    tags:
+                      - File:{{item.title}}
+              - FilesCollection.updateOne:
+                  query:
+                    name: '{{item.title}}'
+                  data:
+                    name: '{{item.title}}'
+                    versionNumber: '{{item.version.number}}'
+                  options:
+                    upsert: true
+                  output: existingFiles
+              - set:
+                  name: updatedFiles
+                  type: push
+                  value: '{{item.title}}'
+            default:
+              - set:
+                  name: logExistingFiles
+                  type: push
+                  value: '{{item.title}}'
+              - emit:
+                  event: uploadProcess-fileExist
+                  payload:
+                    filename: '{{item.title}}'
+  - set:
+      name: output.generatedDataSchema
+      value: '{{generatedDataSchema}}'
+  - deleteOlderAIKDocuments:
+      newExhaustiveFileNameList: '{{newExhaustiveFileNameList}}'
+      output: deleteOutput
+  - set:
+      name: output
+      type: merge
+      value:
+        filesData[0]: '{{filesData[0]}}'
+        filesDataNb: '{{filesData.length}}'
+        deleteOutput: '{{deleteOutput}}'
+        updatedFiles: '{{updatedFiles}}'
+        existingFiles: '{{logExistingFiles}}'
+output: '{{output}}'
+arguments:
+  dry:
+    type: boolean
+  reindex:
+    type: boolean
+    description: Force reindexation of all documents regarldess of versionNumber

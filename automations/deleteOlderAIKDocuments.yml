@@ -1,0 +1,68 @@
+slug: deleteOlderAIKDocuments
+name: utils/delete older AIK Documents
+do:
+  - FilesCollection.deleteMany:
+      query:
+        name:
+          $nin: '{{newExhaustiveFileNameList}}'
+      output: deleteOutput
+  - set:
+      name: aikDeletedCount
+      value: 0
+  - comment: >-
+      Delete the AIK documents that don't start with "filename" (their names are
+      in format "filename/projectname")
+  - getAllAIKDocuments:
+      output: existingDocuments
+  - repeat:
+      'on': '{{existingDocuments}}'
+      do:
+        - set:
+            name: curDoc
+            value: '{{item}}'
+        - set:
+            name: isInUpdatedNameList
+            value: false
+        - repeat:
+            'on': '{{newExhaustiveFileNameList}}'
+            do:
+              - comment: >-
+                  AIK removes diacritics so we need to do the same before
+                  comparison
+              - Custom Code.run:
+                  function: removeDiacritics
+                  parameters:
+                    value: '{{item}}'
+                  output: curFilename
+              - comment: >-
+                  Below test is to find if curDocname include part of string
+                  "curFilename"
+              - conditions:
+                  replace({{curDoc.name}}, {{curFilename}}, "").length != {{curDoc.name}}:
+                    - set:
+                        name: isInUpdatedNameList
+                        value: true
+        - conditions:
+            '!{{isInUpdatedNameList}}':
+              - Knowledge Client.deleteDocument:
+                  data:
+                    id: '{{curDoc._id}}'
+              - set:
+                  name: aikDeletedCount
+                  value: '{% {{aikDeletedCount}} + 1 %}'
+  - set:
+      name: output
+      value:
+        AIK:
+          deleted: '{{aikDeletedCount}}'
+        Collection: '{{deleteOutput}}'
+output: '{{output}}'
+arguments:
+  newExhaustiveFileNameList:
+    description: >-
+      List of document's source filenames that should be kept on the AI
+      Knowledge
+    type: array
+    items:
+      type: string
+description: Delete all AIK documents that does not come from a specified file list

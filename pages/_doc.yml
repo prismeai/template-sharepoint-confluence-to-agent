@@ -1,0 +1,126 @@
+slug: _doc
+name:
+  fr: Readme
+  en: Readme
+blocks:
+  - slug: RichText
+    content: |-
+      <h1> From Sharepoint/Confluence to RAG </h1>
+      <p class="description">Readme</p><br />
+  - slug: TabsView
+    tabs:
+      - text:
+          fr: Documentation
+          en: Documentation
+        type: event
+        content:
+          blocks:
+            - slug: RichText
+              content: |-
+                <div class="section">
+                  <h2> 1. Create an AI Knowledge Agent (RAG) </h2>   
+                  <p>Set up a new AI Knowledge Agent.</p>
+
+                  <h2> 2. Retrieve Your API Credentials </h2>  
+                  <p>Navigate to <strong>API & Webhook</strong> and copy your <strong>Agent ID</strong> and <strong>API Key</strong>.</p>  
+
+                  <h2> 3. Connect Your AI Agent to This Workspace </h2>  
+                  <p>Go to <strong>Apps > Knowledge Client</strong> and paste your credentials to establish the connection.</p>  
+
+                  <h2> 4. Configure Sharepoint or Confluence </h2>  
+                  <p>Use the <strong>Sharepoint App</strong> pr <strong>Confluence App</strong>  to link your existing repository to this workspace.</p>
+
+                  <h2> 5. View Your Documented Data in AI Knowledge Agent </h2>  
+                  <p>Once the link is established, your documents will appear dynamically.</p>
+                  <p class="note">By default, there is a page limit. Contact your administrator to increase the quota.</p>
+                  <h2> 6. Share your agent </h2>  
+                  <p>Share your agent with your team, distribute the agent's URL, or seamlessly embed the agent script into an existing application.</p>
+
+                </div>
+automation: getPageInfo
+styles: >-
+
+  body {
+    --color-accent: var(--pr-accent-color);
+    --color-accent-contrast: var(--pr-accent-color-contrast);
+    --color-text: var(--pr-main-text);
+    background-color: var(--pr-main-bg-color);
+    line-height: 1.6;
+    margin: 20px;
+    padding: 20px;
+  }
+
+
+  .page-blocks > .pr-block-blocks-list {
+    display: flex;
+    flex-direction: column;
+    min-width: 100%;
+    min-height: 100%;
+    flex: 1;
+    padding: 0 var(--pr-page-x-margin) 0 var(--pr-page-x-margin);
+  }
+
+
+  .page-blocks > .pr-block-blocks-list > .block-cards {
+    width: 100vw;
+    margin: 0 calc(-1 * var(--pr-page-x-margin));
+  }
+
+
+  .page-blocks > .pr-block-blocks-list > .block-cards
+  .cards-container__cards-container > div:first-child {
+    padding-left: var(--pr-page-x-margin);
+  }
+
+  .pr-block-tabs-view__tab--active  {
+    color: var(--pr-accent-color-contrast) !important;
+  }
+
+  .pr-poweredby {
+    position: fixed;
+    left: 1rem;
+    bottom: 1rem;
+  }
+
+
+  .title {
+    font-size: 2.2rem;
+    text-align: center;
+    margin-bottom: 10px;
+  }
+
+  .description {
+    font-size: 1.2rem;
+    text-align: center;
+  }
+
+  .section {
+    padding: 20px;
+    margin: 10px 0;
+    border-radius: 8px;
+    box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+  }
+
+  h1 {
+    font-size: 2.5rem;
+    padding-left: 10px;
+    margin-top: 20px;
+  }
+
+  h2 {
+    font-size: 1.5rem;
+    border-left: 5px solid #3498db;
+    padding-left: 10px;
+    margin-top: 20px;
+  }
+
+  p {
+    font-size: 1rem;
+  }
+
+
+  .note {
+    font-size: 0.9rem;
+    font-weight: bold;
+  }
+colorScheme: auto

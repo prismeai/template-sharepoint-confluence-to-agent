@@ -1,0 +1,20 @@
+id: YtP5-3B
+name: Sharepoint/Confluence to RAG
+slug: api-to-aik
+description: >-
+  Retrieve files from your API, enhanced parsing, then upload to AIK to discuss
+  with these documents. Sharepoint and Confluence examples
+photo: >-
+  https://prismeai-uploads-prod.oss.eu-west-0.prod-cloud-ocb.orange-business.com/YtP5-3B/1QJOCwpUk2J3ZF0uvJIVE.Screenshot-2024-06-06-at-11.27.44.png
+config:
+  schema: {}
+  value:
+    sites:
+      - url: shiftup.sharepoint.com:/sites/YourSite
+        paths:
+          - '*/General/myFolder/*'
+labels:
+  - suggestions
+  - production:product
+blocks: {}
+customDomains: []

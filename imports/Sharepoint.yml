@@ -1,0 +1,7 @@
+appSlug: Sharepoint
+slug: Sharepoint
+config:
+  siteUrl: ''
+  clientId: ''
+  authority: ''
+  clientSecret: ''

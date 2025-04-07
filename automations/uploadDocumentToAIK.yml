@@ -1,0 +1,122 @@
+slug: uploadDocumentToAIK
+name: '/Example: AI Excel Parsing/utils/Parse then upload documents to AIK'
+do:
+  - set:
+      name: generatedSchemaInfoPerSheet
+      value: {}
+  - Custom Code.run:
+      function: xlsxToCSV
+      parameters:
+        fileUrl: '{{fileUrl}}'
+      output: parsedDocument
+  - repeat:
+      'on': '{{parsedDocument}}'
+      do:
+        - set:
+            name: firstFewRows
+            value: ''
+        - wait:
+            timeout: 0.5
+        - set:
+            name: sheetName
+            value: '{{item.sheet}}'
+        - set:
+            name: csvRows
+            value: '{{item.csv}}'
+        - repeat:
+            'on': '{{csvRows}}'
+            until: 15
+            do:
+              - set:
+                  name: firstFewRows
+                  value: |
+                    {{firstFewRows}}
+                    - {{item}}
+        - generateUnificationPrompt:
+            firstBatchRows: '{{firstFewRows}}'
+            output: prompt
+        - comment: >
+            The onResult automation's url will be called if the response takes
+            too long to generate.
+
+            If it is fast enough the result will be stored in the output
+            "response" variable instead.
+        - Knowledge Client.chat-completion:
+            prompt: '{{prompt}}'
+            aiParameters:
+              prompt: ''
+              model: gpt-4-1106-preview
+              history: false
+            output: response
+            onResult: >-
+              {{global.apiUrl}}/workspaces/{{global.workspaceId}}/webhooks/onLLMResult?userId={{user.id}}
+        - conditions:
+            '{{response.error}}':
+              - wait:
+                  timeout: 120
+                  oneOf:
+                    - filters: {}
+                      event: llmResponse
+                  output: eventResult
+              - set:
+                  name: response
+                  value: '{{eventResult.payload}}'
+        - set:
+            name: jsonOutput
+            value: '{% json({{response.response}}) %}'
+        - Custom Code.run:
+            function: csvToJson
+            parameters:
+              mappings: '{{jsonOutput.result}}'
+              csvLines: '{{csvRows}}'
+            output: jsonLines
+        - conditions:
+            '{{jsonLines.error}}':
+              - break:
+                  scope: all
+        - set:
+            name: generatedSchemaInfoPerSheet[{{item.sheet}}]
+            value:
+              LLMInputRows: '{{firstFewRows}}'
+              LLMOutput: '{{jsonOutput}}'
+              JSONRows: '{{jsonLines}}'
+        - conditions:
+            '!{{dryGenAI}}':
+              - repeat:
+                  'on': '{{jsonLines}}'
+                  do:
+                    - set:
+                        name: itemData
+                        value: '{{item}}'
+                    - set:
+                        name: itemData.prisme_sheetname
+                        value: '{{sheetName}}'
+                    - set:
+                        name: itemData.prisme_sourceUrl
+                        value: '{{fileUrl}}'
+                    - set:
+                        name: itemData.prisme_index
+                        value: '{{$index}}'
+                    - Knowledge Client.createDocument:
+                        data:
+                          language: en-EN
+                          externalId: bci-team-roster_{{sheetName}}_{{$index}}
+                          name: '{{filename}}__{{sheetName}}__{{$index}}'
+                          content:
+                            text: '{% json({{itemData}}) %}'
+                          upsert: true
+                          tags:
+                            - File:{{filename}}
+                            - Sheet:{{sheetName}}
+                            - Index:{{$index}}
+arguments:
+  filename:
+    type: string
+  fileUrl:
+    type: string
+  dryGenAI:
+    description: Dry run, do not update files
+    type: boolean
+output:
+  generatedSchemaInfoPerSheet: '{{generatedSchemaInfoPerSheet}}'
+description: upload document to AIK

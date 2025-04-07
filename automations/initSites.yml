@@ -1,0 +1,11 @@
+slug: initSites
+name: /UI/Init Sharepoint sites
+do: []
+output:
+  sites: '{{config.sites}}'
+  workspace:
+    name: '{{$workspace.name}}'
+when:
+  events: []
+  endpoint: true
+  schedules: []

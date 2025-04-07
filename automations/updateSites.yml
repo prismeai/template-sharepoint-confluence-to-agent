@@ -1,0 +1,9 @@
+slug: updateSites
+name: UI/Update Sharepoint sites
+do:
+  - set:
+      name: config.sites
+      value: '{{payload.sites}}'
+when:
+  events:
+    - updateSites

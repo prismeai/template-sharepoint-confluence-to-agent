@@ -1,0 +1,7 @@
+appSlug: Confluence
+slug: Confluence
+config:
+  domain: ''
+  spaceId: ''
+  email: ''
+  token: ''

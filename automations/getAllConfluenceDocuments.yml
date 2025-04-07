@@ -1,0 +1,36 @@
+slug: getAllConfluenceDocuments
+name: '/Example: Confluence Retrieve/Get all confluence documents'
+do:
+  - set:
+      name: allDocuments
+      value: []
+  - set:
+      name: nextPageLink
+      value: ''
+  - repeat:
+      until: 99
+      do:
+        - Confluence.getPages:
+            output: confluencePages
+            nextPageLink: '{{nextPageLink}}'
+            parameters:
+              body-format: ATLAS_DOC_FORMAT
+              limit: 240
+        - repeat:
+            'on': '{{confluencePages.results}}'
+            do:
+              - set:
+                  name: allDocuments
+                  type: push
+                  value: '{{item}}'
+        - conditions:
+            '{{confluencePages._links.next}}':
+              - set:
+                  name: nextPageLink
+                  value: '{{confluencePages._links.next}}'
+            default:
+              - break:
+                  scope: automation
+output:
+  results: '{{allDocuments}}'
+description: Retrieve all documents stored in AIK

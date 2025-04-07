@@ -1,0 +1,33 @@
+slug: getAllAIKDocuments
+name: /documents/getAllAIKDocuments
+do:
+  - set:
+      name: allDocuments
+      value: []
+  - set:
+      name: page
+      value: 0
+  - repeat:
+      until: 99
+      do:
+        - Knowledge Client.listDocuments:
+            output: existingDocuments
+            page: '{{page}}'
+            limit: 50
+            includeContent: true
+        - repeat:
+            'on': '{{existingDocuments}}'
+            do:
+              - set:
+                  name: allDocuments
+                  type: push
+                  value: '{{item}}'
+        - conditions:
+            '{{existingDocuments.length}} < 50':
+              - break:
+                  scope: automation
+        - set:
+            name: page
+            value: '{% {{page}} + 1 %}'
+output: '{{allDocuments}}'
+description: Retrieve all documents stored in AIK

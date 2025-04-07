@@ -1,0 +1,13 @@
+slug: onLLMResult
+name: /utils/onLLMResult
+do:
+  - emit:
+      target:
+        currentSocket: true
+      options:
+        persist: true
+      autocomplete: {}
+      event: llmResponse
+      payload: '{{body}}'
+when:
+  endpoint: true

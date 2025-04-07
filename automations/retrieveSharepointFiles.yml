@@ -1,0 +1,142 @@
+slug: retrieveSharepointFiles
+name: '/Example: AI Excel Parsing/Start Sharepoint file retrieval'
+do:
+  - emit:
+      event: uploadProcess-fetchingFiles
+  - set:
+      name: filesData
+      value: []
+  - set:
+      name: generatedDataSchema
+      value: {}
+  - comment: Retrieve files metadata from Sharepoint
+  - repeat:
+      'on': '{{config.sites}}'
+      do:
+        - emit:
+            event: uploadProcess-fetchingSite
+            payload:
+              site: '{{item.url}}'
+              progress: '{{$index}}/{{config.sites}}'
+        - Custom Code.run:
+            function: createRegexFromPaths
+            parameters:
+              paths: '{{item.paths}}'
+            output: pathsToCrawl
+        - Sharepoint.getFiles:
+            configOverride:
+              siteUrl: '{{item.url}}'
+            crawledPathsRegex: '{{pathsToCrawl}}'
+            output: siteFilesData
+        - conditions:
+            isArray({{siteFilesData}}):
+              - comment: Concatenate result in filesData
+              - set:
+                  name: filesData
+                  type: merge
+                  value: '{{siteFilesData}}'
+  - set:
+      name: newExhaustiveFileNameList
+      value: []
+  - conditions:
+      '!isArray({{filesData}}) or {{filesData.length}} == 0':
+        - set:
+            name: output
+            value:
+              error: NoDataFound
+              message: No data was found for the given configuration, aborting update.
+        - break: {}
+      '{{dry}}':
+        - set:
+            name: output
+            value:
+              message: DryMode, process stopped.
+              filesData: '{{filesData}}'
+              uploadedFile: '{{uploadedFile}}'
+        - break: {}
+  - emit:
+      event: uploadProcess-starting
+      payload:
+        filesDataLength: '{{filesData.length}}'
+  - comment: Update the existing files
+  - repeat:
+      'on': '{{filesData}}'
+      do:
+        - set:
+            name: newExhaustiveFileNameList
+            type: push
+            value: '{{item.filename}}'
+        - Custom Code.run:
+            function: getSha256
+            parameters:
+              base64: '{{item.base64}}'
+            output: fileSha256
+        - FilesCollection.find:
+            query:
+              name: '{{item.filename}}'
+            output: existingFiles
+        - conditions:
+            '{{dryGenAI}} || ({{existingFiles.length}} == 0 || {{existingFiles[0].sha256}} != {{fileSha256}})':
+              - emit:
+                  event: uploadProcess-processingFile
+                  payload:
+                    filename: '{{item.filename}}'
+              - Prismeai API.upload:
+                  public: true
+                  file: '{{item.base64}}'
+                  filename: '{{item.filename}}'
+                  output: uploadedFile
+              - uploadDocumentToAIK:
+                  filename: '{{item.filename}}'
+                  fileUrl: '{{uploadedFile[0].url}}'
+                  dryGenAI: '{{dryGenAI}}'
+                  output: uploadResult
+              - set:
+                  name: generatedDataSchema[{{item.filename}}]
+                  value:
+                    fileUrl: '{{uploadedFile[0].url}}'
+                    result: '{{uploadResult}}'
+              - conditions:
+                  '!{{dryGenAI}}':
+                    - FilesCollection.updateOne:
+                        query:
+                          name: '{{item.filename}}'
+                        data:
+                          name: '{{item.filename}}'
+                          sha256: '{{fileSha256}}'
+                        options:
+                          upsert: true
+                        output: existingFiles
+            default:
+              - emit:
+                  event: uploadProcess-fileExist
+                  payload:
+                    filename: '{{item.filename}}'
+  - set:
+      name: output.generatedDataSchema
+      value: '{{generatedDataSchema}}'
+  - conditions:
+      '{{dryGenAI}}':
+        - break:
+            scope: all
+  - comment: Delete the files that are not available anymore
+  - deleteOlderAIKDocuments:
+      newExhaustiveFileNameList: '{{newExhaustiveFileNameList}}'
+      output: deleteOutput
+  - set:
+      name: output
+      value: deleteOutput
+output:
+  deletion: '{{output}}'
+arguments:
+  dry:
+    descripton: >-
+      Run the automation in dry mode until files are retrieved: will only fetch
+      the documents and return the result, nothing is modified.
+    type: boolean
+  dryGenAI:
+    descripton: >-
+      Run the automation in dry mode but execute the AI unification process:
+      will fetch the documents, then return the updated JSON using AI. Nothing
+      is modified.
+    type: boolean

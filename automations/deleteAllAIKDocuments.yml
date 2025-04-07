@@ -1,0 +1,20 @@
+slug: deleteAllAIKDocuments
+name: debug/Delete all documents
+do:
+  - conditions:
+      '{{areyousure}} == "YESIAM"':
+        - comment: Delete all metadata for files, stored in this workspace
+        - FilesCollection.deleteMany:
+            query: {}
+            output: deletedCol
+        - comment: Delete all document stored in the AI Knowledge
+        - Knowledge Client.deleteDocument:
+            data:
+              id: '*'
+            output: resultAIK
+output:
+  deletedCol: '{{deletedCol}}'
+  resultAIK: '{{resultAIK}}'
+arguments:
+  areyousure:
+    type: string

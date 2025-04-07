@@ -1,0 +1,167 @@
+appSlug: Custom Code
+slug: Custom Code
+config:
+  functions:
+    jsonToYaml:
+      code: |-
+        const yaml = require('js-yaml');
+        return yaml.dump(jsonObject);
+      language: nodejs
+      parameters:
+        jsonObject:
+          type: string
+    retrieveFileName:
+      code: |-
+        import {URL} from 'url';
+
+        const filename = new URL(fileURL).pathname.split('/').pop()
+
+        return filename.substring(filename.indexOf('.')+1);
+      language: nodejs
+      parameters:
+        fileURL:
+          type: string
+    csvToJson:
+      code: |-
+        const { parse } = require('csv-parse/sync');
+
+        const csvData = csvLines.join('\n');
+        // Parse the CSV data with relaxed quote handling
+        const records = parse(csvData, {
+            skip_empty_lines: true,
+            from_line: 1,  // Adjust if your headers are not on the first line of the CSV data
+            relax_column_count: true, // Allows variable number of columns per record
+            relax_quotes: true, // This setting helps handle unbalanced or erroneous quotes
+            ltrim: true,
+            rtrim: true
+        });
+
+        return records.map(row => {
+            return mappings.reduce((obj, { columnName, columnNumber }) => {
+                obj[columnName] = row[columnNumber] || '';  // Populate with empty string if no data
+                return obj;
+            }, {});
+        });
+      language: nodejs
+      parameters:
+        csvLines:
+          type: object
+        mappings:
+          type: object
+    getSha256:
+      code: |
+        const crypto = require('crypto');
+
+        const fileBuffer = Buffer.from(base64, 'base64');
+        const hash = crypto.createHash('sha256');
+        hash.update(fileBuffer);
+        return hash.digest('hex');
+      language: nodejs
+      parameters:
+        base64:
+          type: string
+    createRegexFromPaths:
+      code: >-
+        // First escape special characters
+
+        // Then Transform any "*" in ".*" regex, so that users have access to
+        the wildcard
+
+        const escapedPaths = paths.map(path =>
+        path.replace(/[-\/\\^$+?.()|[\]{}]/g, '\\$&').replace(/\*/g, '.*'));
+
+        return new RegExp(escapedPaths.join('|')).toString();
+      language: nodejs
+      parameters:
+        paths:
+          type: object
+          default: ''
+    xlsxToCSV:
+      code: |-
+        import pandas as pd
+        import openpyxl
+        import base64
+        import io
+        import requests
+
+        def fill_merged_cells(sheet):
+            merged_cells_to_fill = list(sheet.merged_cells)
+            for merged_cell_range in merged_cells_to_fill:
+                merged_cells = list(openpyxl.utils.cell.rows_from_range(str(merged_cell_range)))
+                top_left_cell_value = sheet[merged_cells[0][0]].value
+                sheet.unmerge_cells(str(merged_cell_range))
+                for row in merged_cells:
+                    for cell in row:
+                        sheet[cell].value = top_left_cell_value
+
+        def clean_headers(headers):
+            cleaned_headers = []
+            for header in headers:
+                if header and '\n' in header:
+                    cleaned_headers.append(header.replace('\n', '%5Cn'))
+                elif header:
+                    cleaned_headers.append(header.strip())
+                else:
+                    cleaned_headers.append('')
+            return cleaned_headers
+
+        def xlsx_to_csv_with_filled_merged_cells(data_url):
+            base64_data = data_url.split(',')[1]
+            file_bytes = base64.b64decode(base64_data)
+            workbook = openpyxl.load_workbook(io.BytesIO(file_bytes), data_only=True)
+            output = []
+
+            for sheet_name in workbook.sheetnames:
+                sheet = workbook[sheet_name]
+                fill_merged_cells(sheet)
+                data = list(sheet.values)
+                
+                if data:
+                    headers = data[0]
+                    cleaned_headers = clean_headers(headers)
+                    max_length = max(len(row) for row in data)
+                    if len(cleaned_headers) < max_length:
+                        cleaned_headers += [''] * (max_length - len(cleaned_headers))
+                    df = pd.DataFrame(data[1:], columns=cleaned_headers)
+                    
+                    # Debug output for DataFrame
+                    print(f"Debug: DataFrame head for sheet {sheet_name}:\n{df.head()}")
+
+                    df.dropna(how='all', inplace=True)
+
+                    csv_strings = []
+                    if not df.empty:
+                        csv_buffer = io.StringIO()
+                        df.to_csv(csv_buffer, index=False)
+                        csv_buffer.seek(0)
+                        csv_strings = csv_buffer.read().split('\n')  # Get all lines including headers
+
+                    output.append({'csv': csv_strings, 'sheet': sheet_name})
+                else:
+                    print(f"No data found in sheet: {sheet_name}")
+            
+            return output
+            
+        def create_data_url(url):
+            response = requests.get(url)
+            mime_type = response.headers['Content-Type']
+            base64_data = base64.b64encode(response.content).decode('utf-8')
+            return f"data:{mime_type};base64,{base64_data}"
+
+        data_url = create_data_url(fileUrl)
+        return xlsx_to_csv_with_filled_merged_cells(data_url)
+      language: python
+      parameters:
+        fileUrl:
+          type: string
+          default: ''
+    removeDiacritics:
+      code: return (value || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      parameters:
+        value:
+          type: string
+          default: ''
+  uploads_config:
+    url: https://api.studio.prisme.ai/v2/workspaces/YtP5-3B/files
+    api_key: 23c28cf1-9614-4b13-907c-5dcb1c0da582
+appName: Custom Code
